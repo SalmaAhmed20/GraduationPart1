@@ -227,14 +227,14 @@ def detect_video_realtime_mp(video_path, output_path, input_size=416, show=False
 
     original_frames = Queue()
     Frames_data = Queue()
-    Predicted_data = Queue()
+    Predicted_data2 = Queue()
     Processed_frames = Queue()
     Processing_times = Queue()
     Final_frames = Queue()
 
-    p1 = Process(target=Violence_Part2, args=(Frames_data, Predicted_data, Processing_times))
+    p1 = Process(target=Violence_Part2, args=(Frames_data, Predicted_data2, Processing_times))
     p2 = Process(target=postprocess_mp, args=(
-        Predicted_data, original_frames, Processed_frames, Processing_times, input_size, score_threshold,
+        Predicted_data2, original_frames, Processed_frames, Processing_times, input_size, score_threshold,
         iou_threshold, rectangle_colors, realtime))
     p3 = Process(target=Show_Image_mp, args=(Processed_frames, True, Final_frames))
     p1.start()
@@ -264,12 +264,12 @@ def detect_video_realtime_mp(video_path, output_path, input_size=416, show=False
                 break
 
     while True:
-        print("Orginal frames", original_frames.qsize())
-        print("Frames_data", Frames_data.qsize())
-        print("Predicted_data", Predicted_data.qsize())
-        print("Processed_frames", Processed_frames.qsize())
-        print("Final_frames", Final_frames.qsize())
-        if original_frames.qsize() == 0 and Frames_data.qsize() == 0 and Predicted_data.qsize() == 0 and Processed_frames.qsize() == 0 and Final_frames.qsize() == 0:
+        # print("Orginal frames", original_frames.qsize())
+        # print("Frames_data", Frames_data.qsize())
+        # print("Predicted_data", Predicted_data.qsize())
+        # print("Processed_frames", Processed_frames.qsize())
+        # print("Final_frames", Final_frames.qsize())
+        if original_frames.qsize() == 0 and Frames_data.qsize() == 0 and Predicted_data2.qsize() == 0 and Processed_frames.qsize() == 0 and Final_frames.qsize() == 0:
             p1.terminate()
             p2.terminate()
             p3.terminate()
