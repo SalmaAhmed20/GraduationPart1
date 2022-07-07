@@ -207,8 +207,7 @@ def Show_Image_mp(Processed_frames, show, Final_frames):
                 if cv2.waitKey(25) & 0xFF == ord("q"):
                     cv2.destroyAllWindows()
                     break
-        else:
-            break
+
 
 
 def detect_video_realtime_mp(video_path, output_path, input_size=416, show=False,
