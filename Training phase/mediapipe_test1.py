@@ -19,8 +19,7 @@ import cv2
 import mediapipe as mp
 import numpy as np
 
-import classification
-import smoker
+from Detectionphase import classification, smoker
 
 # mediapipe initialization
 mp_drawing = mp.solutions.drawing_utils

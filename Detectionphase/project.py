@@ -4,7 +4,7 @@ import mediapipe as mp
 import time
 from queue import Queue
 import smoker
-import classification
+from Detectionphase import classification
 
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
@@ -360,4 +360,4 @@ def run(v_path):
 
 
 if __name__ == '__main__':
-    run("D:/Graduation project/Graduation Part1/production ID_4728121.mp4")
+    run("/production ID_4728121.mp4")
