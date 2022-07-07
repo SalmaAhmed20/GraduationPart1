@@ -269,7 +269,7 @@ def detect_video_realtime_mp(video_path, output_path, input_size=416, show=False
         print("Predicted_data", Predicted_data.qsize())
         print("Processed_frames", Processed_frames.qsize())
         print("Final_frames", Final_frames.qsize())
-        if original_frames.qsize() == 0 and Frames_data.qsize() == 0 and Predicted_data.qsize() == 0 and Processed_frames.qsize() == 0 and Processing_times.qsize() == 0 and Final_frames.qsize() == 0:
+        if original_frames.qsize() == 0 and Frames_data.qsize() == 0 and Predicted_data.qsize() == 0 and Processed_frames.qsize() == 0 and Final_frames.qsize() == 0:
             p1.terminate()
             p2.terminate()
             p3.terminate()
@@ -278,7 +278,7 @@ def detect_video_realtime_mp(video_path, output_path, input_size=416, show=False
             image = Final_frames.get()
             if output_path != '': out.write(image)
     end_time = time.time()
-    print("total_duration", end_time - start_time)
+    print("\ntotal_duration", end_time - start_time)
     cv2.destroyAllWindows()
 
 
