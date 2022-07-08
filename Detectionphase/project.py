@@ -4,8 +4,7 @@ import mediapipe as mp
 import time
 from queue import Queue
 import smoker
-from Detectionphase import classification
-
+import classification
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 mp_pose = mp.solutions.pose
@@ -33,9 +32,9 @@ def run(v_path):
         video = cv2.VideoCapture(video_path)
 
     with mp_pose.Pose(
-            enable_segmentation=True,
-            min_detection_confidence=0.5,
-            min_tracking_confidence=0.5,
+        enable_segmentation=True,
+        min_detection_confidence=0.5,
+        min_tracking_confidence=0.5,
     ) as pose:
         outer_ROI = []
         is_inside = False
@@ -47,9 +46,11 @@ def run(v_path):
         hand_mouth_flag = False
         hand_mouth_ttl = 0
         hand_select = ''
+        frame_rate = 0
         smoking_range = 0
         Smoker = smoker.Smoker()
-
+        smoker_dict = Smoker.smoker_dictionary
+        Smoking = 0
         class_model = classification.Model()
         while video.isOpened():
             success, ori_image = video.read()
@@ -69,11 +70,13 @@ def run(v_path):
             gray = cv2.GaussianBlur(gray, (5, 5), 0)
             bg_mask = bg.apply(gray, 0, 0.00001)
 
+            # 성능을 향상시키려면 선택적으로 이미지를 참조로 전달할 수 없는 것으로 표시합니다.
             image.flags.writeable = False
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             results = pose.process(image)
             if not results.pose_landmarks:
                 continue
+            # 포즈 랜드마크
             Nose = results.pose_landmarks.landmark[mp_pose.PoseLandmark.NOSE]
             R_hand = results.pose_landmarks.landmark[mp_pose.PoseLandmark.RIGHT_INDEX]
             L_hand = results.pose_landmarks.landmark[mp_pose.PoseLandmark.LEFT_INDEX]
@@ -83,7 +86,11 @@ def run(v_path):
             L_shoulder = results.pose_landmarks.landmark[mp_pose.PoseLandmark.LEFT_SHOULDER]
             L_ear = results.pose_landmarks.landmark[mp_pose.PoseLandmark.LEFT_EAR]
             R_ear = results.pose_landmarks.landmark[mp_pose.PoseLandmark.RIGHT_EAR]
+            L_eye = results.pose_landmarks.landmark[mp_pose.PoseLandmark.LEFT_EYE]
+            R_eye = results.pose_landmarks.landmark[mp_pose.PoseLandmark.RIGHT_EYE]
 
+            # ear-nose 머리의 방향 계산
+            # 좌측 : 0, 우측 : 1, 양측 : -1
             nose_x = Nose.x * image_width
             l_ear_x = L_ear.x * image_width
             r_ear_x = R_ear.x * image_width
@@ -95,6 +102,7 @@ def run(v_path):
             else:
                 head_direction = -1
 
+            # 오른손 말단과 오른쪽 입가
             cv2.drawMarker(
                 image,
                 (int(R_hand.x * image_width), int(R_hand.y * image_height)),
@@ -110,7 +118,7 @@ def run(v_path):
 
             R_SHOULDER_coord = [int(R_shoulder.x * image_width), int(R_shoulder.y * image_height)]
             L_SHOULDER_coord = [int(L_shoulder.x * image_width), int(L_shoulder.y * image_height)]
-            ROI_PADDING = abs(R_SHOULDER_coord[0] - L_SHOULDER_coord[0])  # // 3
+            ROI_PADDING = abs(R_SHOULDER_coord[0] - L_SHOULDER_coord[0])# // 3
             # ROI
             if not is_inside:
                 outer_ROI = [
@@ -134,6 +142,7 @@ def run(v_path):
                 (0, 255, 0),
                 2)
 
+            # 이미지에 포즈 주석을 그립니다.
             image.flags.writeable = True
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             # mp_drawing.draw_landmarks(
@@ -143,6 +152,9 @@ def run(v_path):
             #     landmark_drawing_spec=mp_drawing_styles.get_default_pose_landmarks_style()
             # )
 
+            # 손 - 얼굴 거리, 지속시간
+            # hand_mouth_flag : 손-입, 어깨-입 거리 차이. 손-입이 더 가까우면 True
+            # hand_mouth_ttl : 손-입 거리가 가까울 때 시간 기록. 이 시간이 두 번 이상 일정하다면 흡연중
             r_hand_coord = [int(R_hand.x * image_width), int(R_hand.y * image_height)]
             l_hand_coord = [int(L_hand.x * image_width), int(L_hand.y * image_height)]
             r_mouth_coord = [int(R_mouth.x * image_width), int(R_mouth.y * image_height)]
@@ -158,16 +170,14 @@ def run(v_path):
                     hand_mouth_flag = True
                     hand_select = 'l'
             else:
-                if hand_select == 'r' and abs(r_hand_coord[1] - r_mouth_coord[1]) > abs(
-                        R_SHOULDER_coord[1] - r_mouth_coord[1]):
+                if hand_select == 'r' and abs(r_hand_coord[1] - r_mouth_coord[1]) > abs(R_SHOULDER_coord[1] - r_mouth_coord[1]):
                     hand_action_ttl.append(hand_mouth_ttl - time.time())
                     hand_mouth_ttl = time.time()
                     hand_mouth_flag = False
                     if Smoker.if_in_dict(1):
                         Smoker.smoker_dictionary[1].smoking_point += 2
                         print("????" + str(Smoker.smoker_dictionary[1].smoking_point))
-                elif hand_select == 'l' and abs(l_hand_coord[1] - l_mouth_coord[1]) > abs(
-                        L_SHOULDER_coord[1] - l_mouth_coord[1]):
+                elif hand_select == 'l' and abs(l_hand_coord[1] - l_mouth_coord[1]) > abs(L_SHOULDER_coord[1] - l_mouth_coord[1]):
                     hand_action_ttl.append(hand_mouth_ttl - time.time())
                     hand_mouth_ttl = time.time()
                     hand_mouth_flag = False
@@ -176,11 +186,14 @@ def run(v_path):
                         print("????" + str(Smoker.smoker_dictionary[1].smoking_point))
                 smoking_range = frame
 
+            # GMM 적용 시점. ROI 생존시간이 4 이상일때 적용
+            # Smoking 객체 생성 시점. 객체추적(deepSORT) t_id를 key로 사용
             th_image = []
             if (time.time() - ROI_ttl) > 4:
                 bg2_mask = kg.apply(gray, 0, 0.025)
                 sub_mask = cv2.bitwise_and(bg_mask, bg2_mask)
 
+                # Smoker_dict에 t_id key가 없으면 추가
                 if not Smoker.if_in_dict(1):
                     Smoking = smoker.Smoking()
                     Smoking.set_data([1, outer_ROI, bg2_mask, frame_rate])
@@ -188,16 +201,14 @@ def run(v_path):
 
                 # cv2.imshow('BG_sub 0.005', bg2_mask)
                 # crop_image == original_image
-                crop_image = image[outer_ROI[1]:outer_ROI[1] + outer_ROI[3], outer_ROI[0]:outer_ROI[0] + outer_ROI[2]]
-                ROI_cut_image = cut_image[outer_ROI[1]:outer_ROI[1] + outer_ROI[3],
-                                outer_ROI[0]:outer_ROI[0] + outer_ROI[2]]
+                crop_image = image[outer_ROI[1]:outer_ROI[1]+outer_ROI[3], outer_ROI[0]:outer_ROI[0]+outer_ROI[2]]
+                ROI_cut_image = cut_image[outer_ROI[1]:outer_ROI[1]+outer_ROI[3], outer_ROI[0]:outer_ROI[0]+outer_ROI[2]]
                 # crop_image_binary == crop sub_mask(bg - bg2)
-                crop_image_binary = sub_mask[outer_ROI[1]:outer_ROI[1] + outer_ROI[3],
-                                    outer_ROI[0]:outer_ROI[0] + outer_ROI[2]]
+                crop_image_binary = sub_mask[outer_ROI[1]:outer_ROI[1]+outer_ROI[3], outer_ROI[0]:outer_ROI[0]+outer_ROI[2]]
                 # cv2.imshow('crop_image_binary', crop_image_binary)
 
                 ret, th_image = cv2.threshold(crop_image_binary, thresh=250, maxval=255, type=cv2.THRESH_BINARY)
-                # th_image = cv2.medianBlur(th_image, ksize=3)
+                th_image = cv2.medianBlur(th_image, ksize=3)
                 # cv2.imshow('th_image', th_image)
 
                 if len(hand_action_ttl) > 1 and abs(hand_action_ttl[-1] - hand_action_ttl[-2]) < 5:
@@ -205,6 +216,7 @@ def run(v_path):
                     conv_image = cv2.resize(th_image, dsize=(100, 100))
                     retn, conv_image = cv2.threshold(conv_image, thresh=125, maxval=255, type=cv2.THRESH_BINARY)
                     # cv2.imshow('100x100', conv_image)
+                    # 5 x 5 영역씩 훑어보면서 밀도 계산 후 위치 추정을 통해 연기인지 구분
                     smoke_map = []
                     smoke_map_append = smoke_map.append
                     for i in range(0, 95, 5):
@@ -225,27 +237,30 @@ def run(v_path):
                     resize_smoke_map = cv2.resize(np_smoke_map_image, dsize=(outer_ROI[2], outer_ROI[3]))
                     # cv2.imshow('smoke_map', resize_smoke_map)
 
-
+                    # 얼굴 랜드마크 좌표를 기준으로 얼굴 마스크 생성
                     square_len = (outer_ROI[2] // 2) // 4
+                    # 코가 양쪽 귀 보다 튀어나왔다면 방향에 따라 코의 x 좌표를 square_x 로 설정함. <-- bug
                     if nose_x < r_ear_x and nose_x < l_ear_x:
                         square_x = (Nose.x * image_width) - outer_ROI[0]
                         square_y = (Nose.y * image_height) - outer_ROI[1]
                     elif nose_x > r_ear_x and nose_x > l_ear_x:
-                        square_x = (Nose.x * image_width) - outer_ROI[0] - square_len * 2
-                        square_y = (Nose.y * image_height) - outer_ROI[1] - square_len * 2
+                        square_x = (Nose.x * image_width) - outer_ROI[0] - square_len*2
+                        square_y = (Nose.y * image_height) - outer_ROI[1] - square_len*2
                     else:
                         square_x = (Nose.x * image_width) - outer_ROI[0] - square_len
                         square_y = (Nose.y * image_height) - outer_ROI[1] - square_len
                     head_map_mask = np.zeros((outer_ROI[2], outer_ROI[3]), dtype=np.uint8)
                     head_mask_box = np.array(
-                        [[square_x, square_y - square_len // 2],
-                         [square_x + square_len * 2, square_y - square_len // 2],
-                         [square_x + square_len * 2, square_y + square_len * 2],
-                         [square_x, square_y + square_len * 2]], dtype=np.int32
+                        [[square_x, square_y - square_len//2],
+                         [square_x + square_len*2, square_y - square_len//2],
+                         [square_x + square_len*2, square_y + square_len*2],
+                         [square_x, square_y + square_len*2]], dtype=np.int32
                     )
                     cv2.fillPoly(head_map_mask, [head_mask_box], color=(255, 255, 255))
+                    # cv2.imshow('head_mask_map', head_map_mask)
 
                     contours, _ = cv2.findContours(resize_smoke_map, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+                    # 코, 입 좌표를 포함하는 contour 찾기
                     mouth_padding = 0
                     if head_direction == 0:
                         mouth_padding = -10
@@ -257,32 +272,31 @@ def run(v_path):
                     find_smoke_contour = []
                     for cnt in contours:
                         x, y, w, h = cv2.boundingRect(cnt)
-                        if x < Nose_coord[0] + mouth_padding - outer_ROI[0] < x + w and \
-                                y < Nose_coord[1] - outer_ROI[1] < y + h:
+                        if x < Nose_coord[0] + mouth_padding - outer_ROI[0] < x+w and \
+                            y < Nose_coord[1] - outer_ROI[1] < y+h:
                             find_smoke_contour.append(cnt)
                             # Smoker.smoker_dictionary[1].smoking_point += 5
-                        if x < R_mouth_coord[0] + mouth_padding - outer_ROI[0] < x + w and \
-                                y < R_mouth_coord[1] - outer_ROI[1] < y + h:
+                        if x < R_mouth_coord[0] + mouth_padding - outer_ROI[0] < x+w and \
+                            y < R_mouth_coord[1] - outer_ROI[1] < y+h:
                             find_smoke_contour.append(cnt)
                             # Smoker.smoker_dictionary[1].smoking_point += 5
-                        if x < L_mouth_coord[0] + mouth_padding - outer_ROI[0] < x + w and \
-                                y < L_mouth_coord[1] - outer_ROI[1] < y + h:
+                        if x < L_mouth_coord[0] + mouth_padding - outer_ROI[0] < x+w and \
+                            y < L_mouth_coord[1] - outer_ROI[1] < y+h:
                             find_smoke_contour.append(cnt)
                             # Smoker.smoker_dictionary[1].smoking_point += 5
 
                     cv2.drawContours(crop_image, contours, -1, (0, 255, 0), 2)
                     if Smoker.smoker_dictionary[1].is_smoke(frame - smoking_range) and not hand_mouth_flag:
-
+                        # contour가 얼굴에서 멀어진다?
+                        # smoke box의 중앙 좌표가 face_mask 외부로 나가면 +point
                         color = (255, 0, 0)
                         for cnt in find_smoke_contour:
                             mt = cv2.moments(cnt)
                             cx = int(mt['m10'] / mt['m00'])
                             cy = int(mt['m01'] / mt['m00'])
-                            cv2.drawMarker(crop_image, (cx, cy), (0, 255, 255), markerType=cv2.MARKER_CROSS,
-                                           markerSize=42)
-                            if cx < square_x or cx > (square_x + square_len * 2) or \
-                                    cy < square_y - square_len // 2 or cy > (
-                                    square_y + square_len * 2):  # <<-- fix need
+                            cv2.drawMarker(crop_image, (cx, cy), (0, 255, 255), markerType=cv2.MARKER_CROSS, markerSize=42)
+                            if cx < square_x or cx > (square_x + square_len * 2) or\
+                                    cy < square_y - square_len//2 or cy > (square_y + square_len * 2): # <<-- fix need
                                 if L_SHOULDER_coord[1] > cy:
                                     if not Smoker.smoker_dictionary[1].smoking_flag:
                                         Smoker.smoker_dictionary[1].smoking_point += 5
@@ -299,10 +313,11 @@ def run(v_path):
                             (int(outer_ROI[0]), int(outer_ROI[1] - 10)), 0, 0.75,
                             color,
                             2)
+                        # 흡연 장면 저장용
                         # if class_model.image_classification(ROI_cut_image):
                         #     cv2.imshow('SMOKING', ROI_cut_image)
-                        # path = './data/cap/' + video_name + str(frame) + '.jpg'
-                        # cv2.imwrite(path, ROI_cut_image)
+                            # path = './data/cap/' + video_name + str(frame) + '.jpg'
+                            # cv2.imwrite(path, ROI_cut_image)
                     else:
                         if Smoker.if_in_dict(1):
                             if (frame - smoking_range) > (frame_rate):
@@ -311,14 +326,17 @@ def run(v_path):
                 else:
                     pass
 
+                # 분류 결과를 큐에 저장
                 if not queue.full():
                     queue.put(class_model.image_classification(ROI_cut_image))
+                # 큐에 저장된 분류 결과를 보면서 count 증가
                 if queue.full():
                     label = queue.get()
                     if label:
                         q_count += 1
                     else:
                         q_count = 0
+                # 만약 4프레임 연속으로 smoking 이라면 putText
                 if q_count > 3:
                     cv2.rectangle(
                         image,
@@ -328,12 +346,12 @@ def run(v_path):
                     cv2.rectangle(
                         image,
                         (int(outer_ROI[0]), int(outer_ROI[1] + outer_ROI[3])),
-                        (int(outer_ROI[0]) + 360, int(outer_ROI[1] + outer_ROI[3] + 40)),
+                        (int(outer_ROI[0]) + 360, int(outer_ROI[1] + outer_ROI[3]+40)),
                         (255, 255, 255), -1)
                     cv2.putText(
                         image,
                         'SMOKING Classification',
-                        (int(outer_ROI[0]), int(outer_ROI[1] + outer_ROI[3] + 30)), 0, 1,
+                        (int(outer_ROI[0]), int(outer_ROI[1] + outer_ROI[3]+30)), 0, 1,
                         (0, 0, 255),
                         2
                     )
@@ -358,6 +376,5 @@ def run(v_path):
         cv2.destroyAllWindows()
         video.release()
 
-
 if __name__ == '__main__':
-    run("/production ID_4728121.mp4")
+    run("D:\\Graduation project\\Graduation Part1\\production ID_4728121.mp4")

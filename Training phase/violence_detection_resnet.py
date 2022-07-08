@@ -9,7 +9,6 @@ Original file is located at
 
 import os
 import platform
-from IPython.display import clear_output
 print(platform.platform())
 
 def resolve_dir(Dir):
@@ -33,7 +32,6 @@ print("Tensorflow version " + tf.__version__)
 MyDrive = '/kaggle/working'
 
 PROJECT_DIR = '../input/real-life-violence-situations-dataset'
-!ls {PROJECT_DIR}
 
 import cv2
 import os
@@ -169,7 +167,7 @@ model = load_layers()
 
 model.summary()
 
-from tensorflow.keras.callbacks import Callback, ModelCheckpoint, LearningRateScheduler, TensorBoard, EarlyStopping, ReduceLROnPlateau
+from keras.callbacks import Callback, ModelCheckpoint, LearningRateScheduler, TensorBoard, EarlyStopping, ReduceLROnPlateau
 
 patience = 3
 

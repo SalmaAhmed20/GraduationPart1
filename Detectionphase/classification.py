@@ -9,7 +9,7 @@ class Model:
         self.class_names = ['nonsmoking', 'smoking']
 
     def image_classification(self, image):
-        image = cv2.resize(image, dsize=(180, 180))
+        image = cv2.resize(image, (180, 180))
         image = image.reshape(1, 180, 180, 3).astype('float32')  # / 255.
         prediction = self.loaded_model.predict(image)
         prediction = tf.nn.softmax(prediction)
