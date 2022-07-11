@@ -209,7 +209,7 @@ def Smoking_part2(v_path):
                     )
                 re = np.array(SmokingScore).mean(axis=0)
                 vorn = (re > 0.60)
-                if frame_count2 >= 90 and vorn:
+                if frame_count2 >= 150 and vorn:
                     firebaseApi.FirebaseAPI(True, "0")
                     frame_count2 = 0
                     SmokingScore.clear()
