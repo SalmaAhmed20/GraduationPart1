@@ -9,13 +9,15 @@ mp_drawing_styles = mp.solutions.drawing_styles
 mp_pose = mp.solutions.pose
 mp_face_detection = mp.solutions.face_detection
 
-video_path = 'D:/Graduation project/Graduation Part1/Smoking My First Cigarette in 3 Days.mp4'
+video_path = 'D:/Graduation project/Graduation Part1/VID20220709184458.mp4'
 
 try:
     video = cv2.VideoCapture(int(video_path))
+
 except:
     video = cv2.VideoCapture(video_path)
-
+width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
+height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
 with mp_pose.Pose(
         enable_segmentation=True,
         min_detection_confidence=0.5,
@@ -30,7 +32,9 @@ with mp_pose.Pose(
         if not success:
             print("video.read fail.")
             break
-        image = cv2.resize(original_image, dsize=(480, 500))
+        original_image = cv2.rotate(original_image, cv2.ROTATE_180)
+
+        image = cv2.resize(original_image, (width, height))
         image_height, image_width, _ = image.shape
         cut_image = image.copy()
 
@@ -88,6 +92,10 @@ with mp_pose.Pose(
             (outer_ROI[0] + outer_ROI[2], outer_ROI[1] + outer_ROI[3]),
             (255, 0, 0),
             2)
+        i = int(width *0.45)
+        j=int(height *0.45)
+        image= cv2.resize(image, (i, j))
+
         cv2.imshow('Image', image)
         if cv2.waitKey(5) & 0xFF == 27:
             break

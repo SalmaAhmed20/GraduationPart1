@@ -31,14 +31,15 @@ bg2 = cv2.createBackgroundSubtractorMOG2(history=42, varThreshold=16, detectShad
 kg = cv2.createBackgroundSubtractorKNN(history=42, dist2Threshold=64, detectShadows=False)
 kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
 
-video_path = "D:/Graduation project/Graduation Part1/Smoking My First Cigarette in 3 Days.mp4"
+video_path = "D:/Graduation project/Graduation Part1/VID20220709184458.mp4"
 video_name = video_path.split('/')[-1].split('.')[0]
 print(video_name)
 try:
     video = cv2.VideoCapture(int(video_path))
 except:
     video = cv2.VideoCapture(video_path)
-
+width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
+height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
 with mp_pose.Pose(
         enable_segmentation=True,
         min_detection_confidence=0.5,
@@ -69,12 +70,13 @@ with mp_pose.Pose(
             frame_rate = video.get(cv2.CAP_PROP_FPS)
         except:
             frame_rate = 24
+        ori_image = cv2.rotate(ori_image, cv2.ROTATE_180)
+
+        image = cv2.resize(ori_image, (width, height))
         image = ori_image.copy()
-        image = cv2.resize(image, dsize=(960, 480))
         cut_image = image.copy()
         image_height, image_width, _ = image.shape
-        gray = cv2.resize(ori_image, dsize=(960, 480))
-        gray = cv2.cvtColor(gray, cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(ori_image, cv2.COLOR_BGR2GRAY)
         gray = cv2.GaussianBlur(gray, (5, 5), 0)
         bg_mask = bg.apply(gray, 0, 0.00001)
 
@@ -316,6 +318,10 @@ with mp_pose.Pose(
         else:
             if Smoker.if_in_dict(1):
                 Smoker.del_dict(1)
+
+        i = int(width * 0.45)
+        j = int(height * 0.45)
+        image = cv2.resize(image, (i, j))
 
         cv2.imshow('MediaPipe Pose', image)
         cv2.waitKey(0)

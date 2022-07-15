@@ -4,7 +4,6 @@ from keras.models import Sequential
 from keras.utils import image_dataset_from_directory
 from keras import layers
 from matplotlib import pyplot as plt
-from sklearn.metrics import classification_report
 
 image_size = (180, 180)
 batch_size = 16
