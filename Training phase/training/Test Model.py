@@ -13,7 +13,7 @@ color_map = defaultdict(dict)
 classfication =Model()
 from keras.utils.vis_utils import plot_model
 
-model = keras.models.load_model('D:\\Graduation project\\Graduation Part1\\ResNet50.hdf5')
+model = keras.models.load_model('/ViolenceModel/ResNet50.hdf5')
 
 plot_model(model, to_file='model2_plot.png', show_shapes=True, show_layer_names=True)
 

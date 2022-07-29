@@ -22,20 +22,20 @@ def Violence_Part2(Frame, model, scores):
     scores.append(preds)
     results = np.array(scores).mean(axis=0)
     print(results)
-    label = (results > 0.85)[0]
+    label = (results > 0.99)[0]
     if label:
         text_color = (0, 0, 255)
     else:
         text_color = (0, 255, 0)
     text = "Violence: {}".format(label)
     FONT = cv2.FONT_HERSHEY_SIMPLEX
-    image_data = cv2.putText(image_data, text, (35, 50), FONT, 1.25, text_color, 3)
+    image_data = cv2.putText(image_data, text, (35, 50), FONT, 1.75, text_color, 3)
     return image_data, scores
 
 
 def Smoking_part2(v_path):
-    ViolanceScore = deque(maxlen=25)
-    SmokingScore = deque(maxlen=128)
+    ViolanceScore = deque(maxlen=120)
+    SmokingScore = deque(maxlen=120)
     firebaseApi = APIS()
     ViolanceScore.append(0)
     ViolanceScore.append(0)
@@ -54,10 +54,12 @@ def Smoking_part2(v_path):
 
     except:
         video = cv2.VideoCapture(video_path)
+    frame_rate = video.get(cv2.CAP_PROP_FPS)
+    # print(frame_rate)
     # To Save videos in the ending of detection Process
     width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    writer = cv2.VideoWriter('basicvideo2.mp4', cv2.VideoWriter_fourcc(*'DIVX'), 20, (width, height))
+    writer = cv2.VideoWriter('basicvideo6.mp4', cv2.VideoWriter_fourcc(*'DIVX'), 20, (width, height))
 
     with mp_pose.Pose(
             enable_segmentation=True,
@@ -82,14 +84,14 @@ def Smoking_part2(v_path):
                 print("video.read fail.")
                 break
             frame_rate = video.get(cv2.CAP_PROP_FPS)
-            # ori_image = cv2.rotate(ori_image, cv2.ROTATE_180)
+            ori_image = cv2.rotate(ori_image, cv2.ROTATE_180)
 
             ori_image, ViolanceScore = Violence_Part2(ori_image, model, ViolanceScore)
-            re=np.array(ViolanceScore).mean(axis=0)
-            vorn=(re > 0.90)[0]
+            re = np.array(ViolanceScore).mean(axis=0)
+            vorn = (re > 0.90)[0]
             if frame_count >= 120 and vorn:
                 firebaseApi.FirebaseAPI(False, "0")
-                frame_count=0
+                frame_count = 0
                 ViolanceScore.clear()
 
             cut_image = ori_image.copy()
@@ -191,36 +193,41 @@ def Smoking_part2(v_path):
                 crop_image = image[outer_ROI[1]:outer_ROI[1] + outer_ROI[3], outer_ROI[0]:outer_ROI[0] + outer_ROI[2]]
                 ROI_cut_image = cut_image[outer_ROI[1]:outer_ROI[1] + outer_ROI[3],
                                 outer_ROI[0]:outer_ROI[0] + outer_ROI[2]]
-                predss = class_model.image_classification(ROI_cut_image)
-                SmokingScore.append(predss)
-                if (predss):
-                    cv2.putText(
-                        ori_image,
-                        'SMOKING Classification',
-                        (30, 80),0,1,
-                        (0, 0, 255),
-                        2
-                    )
-                else:
-                    print("Non")
-                    cv2.putText(
-                        ori_image,
-                        'No Smoking',
-                        (30, 80),0,1,
-                        (0, 255, 0),
-                        2
-                    )
-                re = np.array(SmokingScore).mean(axis=0)
-                vorn = (re > 0.60)
-                if frame_count2 >= 120 and vorn:
-                    firebaseApi.FirebaseAPI(True, "0")
-                    frame_count2 = 0
-                    SmokingScore.clear()
-            ori_image=cv2.resize(ori_image, (width, height))
-            # cv2.imshow('Smoking Detection Project', ori_image)
+                if ROI_cut_image is not None:
+                    predss = class_model.image_classification(ROI_cut_image)
+                    SmokingScore.append(predss)
+                    if (predss):
+                        cv2.putText(
+                            ori_image,
+                            'SMOKING Classification',
+                            (30, 90), 0, 1.75,
+                            (0, 0, 255),
+                            2
+                        )
+                    else:
+                        print("Non")
+                        cv2.putText(
+                            ori_image,
+                            'No Smoking',
+                            (30, 90), 0, 1.75,
+                            (0, 255, 0),
+                            2
+                        )
+                    re = SmokingScore.count(True)
+                    ref = SmokingScore.count(False)
+                    if (re > ref):
+                        vorn = True
+                    else:
+                        vorn = False
+                    if frame_count2 >= 90 and vorn:
+                        firebaseApi.FirebaseAPI(True, "0")
+                        frame_count2 = 0
+                        SmokingScore.clear()
+                ori_image = cv2.resize(ori_image, (width, height))
+            cv2.imshow('Smoking Detection Project', ori_image)
             writer.write(ori_image)
             frame_count += 1
-            frame_count2+=1
+            frame_count2 += 1
             if cv2.waitKey(5) & 0xFF == 27:
                 break
 
@@ -233,4 +240,4 @@ def detect_video_realtime_mp(video_path):
 
 
 if __name__ == '__main__':
-    detect_video_realtime_mp("D:\\Graduation project\\istockphoto-578312834-640_adpp_is.mp4")
+    detect_video_realtime_mp("D:\\Graduation project\\Graduation Part1\\VID20220709184458.mp4")
